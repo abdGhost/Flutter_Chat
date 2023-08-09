@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_chat/widgets/user_image_picker.dart';
 
 final _firebaseAuth = FirebaseAuth.instance;
 
@@ -18,6 +22,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
   String _enteredEmail = '';
   String _enteredPassword = '';
+  File? _selectedImage;
 
   Future<void> _submit() async {
     final validValue = _formKey.currentState!.validate();
@@ -26,20 +31,34 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    if (!_isLogin && _selectedImage == null) {
+      return;
+    }
+
     _formKey.currentState!.save();
     try {
       if (_isLogin) {
         //login user in
+        // ignore: unused_local_variable
         final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
           email: _enteredEmail,
           password: _enteredPassword,
         );
       } else {
+        // ignore: unused_local_variable
         final userCredentials =
             await _firebaseAuth.createUserWithEmailAndPassword(
           email: _enteredEmail,
           password: _enteredPassword,
         );
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('user_images')
+            .child('${userCredentials.user!.uid}.jpg');
+
+        await storageRef.putFile(_selectedImage!);
+        final imageUrl = storageRef.getDownloadURL();
+        print(imageUrl);
       }
     } on FirebaseAuthException catch (error) {
       if (error.code == 'email-already-in-use') {
@@ -85,6 +104,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (!_isLogin)
+                            UserImagePicker(
+                              onPickImage: ((pickedImage) {
+                                _selectedImage = pickedImage;
+                              }),
+                            ),
                           TextFormField(
                             decoration: const InputDecoration(
                               labelText: 'Email Address',
