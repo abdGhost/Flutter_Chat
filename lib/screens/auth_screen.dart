@@ -24,6 +24,8 @@ class _AuthScreenState extends State<AuthScreen> {
   String _enteredPassword = '';
   File? _selectedImage;
 
+  bool _isAuthenticating = false;
+
   Future<void> _submit() async {
     final validValue = _formKey.currentState!.validate();
 
@@ -37,6 +39,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     _formKey.currentState!.save();
     try {
+      setState(() {
+        _isAuthenticating = true;
+      });
       if (_isLogin) {
         //login user in
         // ignore: unused_local_variable
@@ -58,11 +63,39 @@ class _AuthScreenState extends State<AuthScreen> {
 
         await storageRef.putFile(_selectedImage!);
         final imageUrl = storageRef.getDownloadURL();
+        // ignore: avoid_print
         print(imageUrl);
       }
     } on FirebaseAuthException catch (error) {
       if (error.code == 'email-already-in-use') {
         // Show error message according to code
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email already in use'),
+          ),
+        );
+      } else if (error.code == 'invalid-email') {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('invalid-email'),
+          ),
+        );
+      } else if (error.code == 'operation-not-allowed') {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('operation-not-allowed'),
+          ),
+        );
+      } else if (error.code == 'weak-password') {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password is too weak'),
+          ),
+        );
       }
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,6 +103,9 @@ class _AuthScreenState extends State<AuthScreen> {
           content: Text(error.message ?? 'Authication Failed'),
         ),
       );
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -150,29 +186,33 @@ class _AuthScreenState extends State<AuthScreen> {
                           const SizedBox(
                             height: 12,
                           ),
-                          ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
+                          if (_isAuthenticating)
+                            const CircularProgressIndicator(),
+                          if (!_isAuthenticating)
+                            ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                              ),
+                              child: Text(
+                                _isLogin ? 'Login' : 'Sign Up',
+                              ),
                             ),
-                            child: Text(
-                              _isLogin ? 'Login' : 'Sign Up',
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _isLogin = !_isLogin;
-                              });
-                            },
-                            child: Text(
-                              _isLogin
-                                  ? 'Create a new account'
-                                  : 'I already have a account. LogIn',
-                            ),
-                          )
+                          if (!_isAuthenticating)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                });
+                              },
+                              child: Text(
+                                _isLogin
+                                    ? 'Create a new account'
+                                    : 'I already have a account. LogIn',
+                              ),
+                            )
                         ],
                       ),
                     ),
