@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
@@ -22,6 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
   String _enteredEmail = '';
   String _enteredPassword = '';
+  String _enteredUsername = '';
   File? _selectedImage;
 
   bool _isAuthenticating = false;
@@ -56,15 +58,27 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _enteredEmail,
           password: _enteredPassword,
         );
+        print(userCredentials.user);
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('user_images')
             .child('${userCredentials.user!.uid}.jpg');
+        print('Image here');
+        print(storageRef);
 
         await storageRef.putFile(_selectedImage!);
-        final imageUrl = storageRef.getDownloadURL();
-        // ignore: avoid_print
-        print(imageUrl);
+
+        final imageUrl = await storageRef.getDownloadURL();
+        print('url');
+        print(imageUrl.toString());
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user!.uid)
+            .set({
+          'username': _enteredUsername,
+          'email': _enteredEmail,
+          'image_url': imageUrl.toString(),
+        });
       }
     } on FirebaseAuthException catch (error) {
       if (error.code == 'email-already-in-use') {
@@ -165,6 +179,24 @@ class _AuthScreenState extends State<AuthScreen> {
                               _enteredEmail = newValue!;
                             },
                           ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          if (!_isLogin)
+                            TextFormField(
+                              decoration: const InputDecoration(
+                                labelText: 'Username',
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().length < 4) {
+                                  return 'At least 4 characters required';
+                                }
+                                return null;
+                              },
+                              onSaved: ((newValue) {
+                                _enteredUsername = newValue!;
+                              }),
+                            ),
                           const SizedBox(
                             height: 10,
                           ),
